@@ -141,37 +141,61 @@ export function clearConfig() {
   removeItem(GIST_ID_KEY);
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function initializeGist(token: string): Promise<string> {
-  // First, validate token by checking user info
-  const userRes = await fetch("https://api.github.com/user", {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
-  });
+  // Validate token by checking user info (with timeout)
+  let userRes: Response;
+  try {
+    userRes = await fetchWithTimeout("https://api.github.com/user", {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+    });
+  } catch (e: any) {
+    if (e.name === "AbortError") throw new Error("连接 GitHub 超时，请检查网络或使用代理");
+    throw new Error("无法连接 GitHub，请检查网络是否正常");
+  }
 
   if (!userRes.ok) {
     if (userRes.status === 401) throw new Error("Token 无效，请检查是否完整复制（以 ghp_ 开头）");
     if (userRes.status === 403) throw new Error("Token 没有权限，请确认勾选了 gist 权限");
-    throw new Error(`验证失败 (${userRes.status})，请重试`);
+    throw new Error(`验证失败 (HTTP ${userRes.status})，请重试`);
   }
 
   // Check if gist scope is present
   const scopes = userRes.headers.get("X-OAuth-Scopes") || "";
   if (!scopes.includes("gist")) {
-    throw new Error("Token 缺少 gist 权限！创建时请务必勾选 gist 选项");
+    throw new Error("Token 缺少 gist 权限！创建时请务必勾选 gist 选项（不是 repo，是 gist）");
   }
 
-  const res = await fetch("https://api.github.com/gists", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/vnd.github+json" },
-    body: JSON.stringify({
-      description: "Li's 李子 - 数据存储",
-      public: false,
-      files: { "lis-tracker-data.json": { content: JSON.stringify({ readers: [], works: [], creativeEntries: [] }) } },
-    }),
-  });
+  // Create gist
+  let res: Response;
+  try {
+    res = await fetchWithTimeout("https://api.github.com/gists", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/vnd.github+json" },
+      body: JSON.stringify({
+        description: "Li's 李子 - 数据存储",
+        public: false,
+        files: { "lis-tracker-data.json": { content: JSON.stringify({ readers: [], works: [], creativeEntries: [] }) } },
+      }),
+    });
+  } catch (e: any) {
+    if (e.name === "AbortError") throw new Error("创建存储超时，请检查网络或使用代理");
+    throw new Error("无法连接 GitHub，请检查网络是否正常");
+  }
 
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.message || "创建 Gist 失败，请重试");
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `创建失败 (HTTP ${res.status})，请重试`);
   }
 
   const gist = await res.json();
