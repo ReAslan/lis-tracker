@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Reader {
+  id             Int             @id @default(autoincrement())
+  name           String
+  emoji          String          @default("🍑")
+  works          Work[]
+  creativeEntries CreativeEntry[]
+  createdAt      DateTime        @default(now())
+}
+
+model Work {
+  id               Int      @id @default(autoincrement())
+  title            String
+  author           String?
+  type             String
+  serialStatus     String
+  coverUrl         String?
+  readingStatus    String   @default("reading")
+  progressCurrent  Int      @default(0)
+  progressTotal    Int?
+  rating           Int?
+  oneLineReview    String?
+  touchingMoments  String?
+  daysToFinish     Int?
+  cpPersonality    String?
+  cpTension        String?
+  cpFamousLines    String?
+  tags             String?
+  tropes           String?
+  notes            String?
+  readerId         Int
+  reader           Reader   @relation(fields: [readerId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model CreativeEntry {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  readerId  Int
+  reader    Reader   @relation(fields: [readerId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --peach: #fff0e7;
+  --coral: #ff8fab;
+  --mint: #b5e8d5;
+  --text-warm: #5c4b51;
+}
+
+body {
+  background: linear-gradient(135deg, #fff0e7 0%, #fff5f5 30%, #f0f0ff 60%, #f5fff5 100%);
+  background-attachment: fixed;
+  color: var(--text-warm);
+  min-height: 100vh;
+}
+
+/* Scrollbar - cute thin */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ffd0db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #ffb8c9; }
+
+/* Smooth everything */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* Decorative floating bubbles */
+@keyframes floatUp {
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+}
+
+.bg-bubbles {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.bubble {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 50%;
+  animation: floatUp linear infinite;
+}
+
+/* Q-style glass */
+@layer components {
+  .glass-q {
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.9);
+  }
+}
