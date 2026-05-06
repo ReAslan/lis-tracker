@@ -17,19 +17,20 @@ const TYPE_CONFIG: Record<string, { label: string; emoji: string }> = {
 };
 
 interface Work {
-  id: number;
+  id: string;
   title: string;
-  author: string | null;
+  author?: string | null;
   type: string;
-  coverUrl: string | null;
+  coverUrl?: string | null;
   readingStatus: string;
-  rating: number | null;
-  oneLineReview: string | null;
+  rating?: number | null;
+  oneLineReview?: string | null;
   progressCurrent: number;
-  progressTotal: number | null;
+  progressTotal?: number | null;
 }
 
-export default function WorkCard({ work }: { work: Work }) {
+// Accept any object with these fields
+export default function WorkCard({ work }: { work: any }) {
   const progressPercent =
     work.progressTotal && work.progressTotal > 0
       ? Math.round((work.progressCurrent / work.progressTotal) * 100)
@@ -40,7 +41,7 @@ export default function WorkCard({ work }: { work: Work }) {
 
   return (
     <Link
-      href={`/works/${work.id}`}
+      href={`/works?id=${work.id}`}
       className="group block bg-white rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all overflow-hidden hover:shadow-coral/15"
       style={{ animation: "pop 0.3s ease-out" }}
     >

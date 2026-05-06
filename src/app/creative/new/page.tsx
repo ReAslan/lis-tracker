@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useReader } from "@/context/ReaderContext";
+import * as store from "@/lib/githubStore";
 
 export default function NewCreativePage() {
   const router = useRouter();
@@ -15,13 +16,10 @@ export default function NewCreativePage() {
     e.preventDefault();
     if (!currentReader) return;
     setSaving(true);
-    const res = await fetch("/api/creative", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, content, readerId: currentReader.id }),
-    });
-    if (res.ok) { const entry = await res.json(); router.push(`/creative/${entry.id}`); router.refresh(); }
-    else setSaving(false);
+    try {
+      const entry = await store.createCreativeEntry({ title, content, readerId: currentReader.id });
+      router.push(`/creative?id=${entry.id}`);
+    } catch { setSaving(false); }
   }
 
   const ic = "w-full rounded-[1.25rem] border-2 border-coral/15 bg-white px-4 py-3 text-sm text-text-warm placeholder:text-text-light/50 focus:ring-4 focus:ring-coral/15 focus:border-coral outline-none transition-all";
@@ -33,7 +31,7 @@ export default function NewCreativePage() {
         <div><label className="block text-sm font-bold text-text-warm mb-1.5">标题 *</label><input className={ic} value={title} onChange={e => setTitle(e.target.value)} required placeholder="给灵感取个名字" /></div>
         <div><label className="block text-sm font-bold text-text-warm mb-1.5">正文 *</label><textarea className={ic} rows={14} value={content} onChange={e => setContent(e.target.value)} required placeholder="写下你的脑洞、CP重组、代餐想法..." /></div>
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={saving} className="px-6 py-3 bg-coral text-white rounded-pill font-bold text-sm hover:bg-coral-dark disabled:opacity-50 transition-all shadow-lg shadow-coral/15 hover:scale-105 active:scale-95">✨ {saving ? "保存中..." : "保存"}</button>
+          <button type="submit" disabled={saving} className="px-6 py-3 bg-coral text-white rounded-pill font-bold text-sm hover:bg-coral-dark transition-all shadow-lg shadow-coral/15 hover:scale-105">✨ {saving ? "保存中..." : "保存"}</button>
           <button type="button" onClick={() => router.back()} className="px-6 py-3 text-text-soft hover:text-text-warm font-bold text-sm transition-colors">取消</button>
         </div>
       </form>
