@@ -10,12 +10,12 @@ function getItem(key: string): string | null {
 
 function setItem(key: string, value: string) {
   if (!isBrowser) return;
-  try { setItem(key, value); } catch { /* noop */ }
+  try { localStorage.setItem(key, value); } catch { /* noop */ }
 }
 
 function removeItem(key: string) {
   if (!isBrowser) return;
-  try { removeItem(key); } catch { /* noop */ }
+  try { localStorage.removeItem(key); } catch { /* noop */ }
 }
 
 interface AppData {
