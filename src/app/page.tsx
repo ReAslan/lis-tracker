@@ -102,34 +102,48 @@ function SetupForm() {
       await store.initializeGist(token.trim());
       window.location.reload();
     } catch (e: any) {
-      setError(e.message || "Token 无效，请检查后重试");
+      setError(e.message || "连接失败，请检查 Token 是否正确");
     }
     setSetting(false);
   }
 
   return (
     <div className="space-y-3">
-      <div className="text-left">
-        <p className="text-xs text-text-light mb-2">
+      <div className="text-left space-y-2 bg-amber-50 rounded-2xl p-4 border border-amber-200">
+        <p className="text-xs font-bold text-amber-800 mb-2">⚠️ Token 创建步骤（必须严格按照顺序）：</p>
+        <p className="text-xs text-amber-700">
           1. 打开{" "}
-          <a href="https://github.com/settings/tokens/new?scopes=gist&description=lis-tracker" target="_blank" className="text-coral font-bold underline">
-            GitHub Token 创建页
+          <a href="https://github.com/settings/tokens" target="_blank" className="text-coral font-bold underline">
+            github.com/settings/tokens
           </a>
         </p>
-        <p className="text-xs text-text-light mb-2">
-          2. Expiration 选 <b>No expiration</b> → 点 Generate token
+        <p className="text-xs text-amber-700">
+          2. 点 <b>Generate new token</b> → 选 <b>Generate new token (classic)</b>
         </p>
-        <p className="text-xs text-text-light mb-2">
-          3. 复制生成的 token（以 ghp_ 开头），粘贴到下面
+        <p className="text-xs text-amber-700">
+          3. Note 填 <b>lis-tracker</b>，Expiration 选 <b>No expiration</b>
+        </p>
+        <p className="text-xs text-amber-700">
+          4. 勾选 <b>gist</b> 权限 ✅（这是最关键的一步！）
+        </p>
+        <p className="text-xs text-amber-700">
+          5. 拉到最下面点 <b>Generate token</b>，复制绿色框里的 <b>ghp_</b> 开头的 token
+        </p>
+        <p className="text-xs text-amber-700">
+          6. 粘贴到下面输入框
         </p>
       </div>
       <input
         value={token}
         onChange={e => setToken(e.target.value)}
-        placeholder="ghp_xxxxxxxxxxxx"
+        placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
         className="w-full rounded-[1.25rem] border-2 border-coral/15 bg-white px-4 py-3 text-sm text-text-warm outline-none focus:ring-4 focus:ring-coral/15 focus:border-coral transition-all"
       />
-      {error && <p className="text-red-400 text-xs font-bold">{error}</p>}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-3">
+          <p className="text-red-500 text-xs font-bold">❌ {error}</p>
+        </div>
+      )}
       <button
         onClick={handleSetup}
         disabled={setting || !token.trim()}
@@ -138,7 +152,7 @@ function SetupForm() {
         {setting ? "⏳ 连接中..." : "🔗 连接 GitHub"}
       </button>
       <p className="text-[10px] text-text-light/60">
-        Token 保存在浏览器本地，不会上传到任何服务器
+        Token 只存在你的浏览器本地，不会上传到任何服务器
       </p>
     </div>
   );

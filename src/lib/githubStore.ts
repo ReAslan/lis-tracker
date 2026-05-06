@@ -142,6 +142,23 @@ export function clearConfig() {
 }
 
 export async function initializeGist(token: string): Promise<string> {
+  // First, validate token by checking user info
+  const userRes = await fetch("https://api.github.com/user", {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+  });
+
+  if (!userRes.ok) {
+    if (userRes.status === 401) throw new Error("Token 无效，请检查是否完整复制（以 ghp_ 开头）");
+    if (userRes.status === 403) throw new Error("Token 没有权限，请确认勾选了 gist 权限");
+    throw new Error(`验证失败 (${userRes.status})，请重试`);
+  }
+
+  // Check if gist scope is present
+  const scopes = userRes.headers.get("X-OAuth-Scopes") || "";
+  if (!scopes.includes("gist")) {
+    throw new Error("Token 缺少 gist 权限！创建时请务必勾选 gist 选项");
+  }
+
   const res = await fetch("https://api.github.com/gists", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/vnd.github+json" },
@@ -154,7 +171,7 @@ export async function initializeGist(token: string): Promise<string> {
 
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(err.message || "创建 Gist 失败");
+    throw new Error(err.message || "创建 Gist 失败，请重试");
   }
 
   const gist = await res.json();
