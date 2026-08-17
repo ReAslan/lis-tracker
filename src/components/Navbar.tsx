@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useReader } from "@/context/ReaderContext";
@@ -12,7 +13,28 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { currentReader, loading } = useReader();
+  const { currentReader, loading, logout, exportBackup } = useReader();
+  const [exporting, setExporting] = useState(false);
+
+  const downloadBackup = async () => {
+    if (!currentReader || exporting) return;
+    setExporting(true);
+    try {
+      const content = await exportBackup();
+      const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeName = currentReader.name.replace(/[\\/:*?\"<>|]/g, "_").slice(0, 30) || "reader";
+      link.href = url;
+      link.download = `lis-${safeName}-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading) return null;
 
@@ -27,25 +49,21 @@ export default function Navbar() {
                 Li&apos;s 李子
               </span>
               <span className="hidden text-[10px] font-bold tracking-[0.18em] text-text-light sm:block">
-                PRIVATE SHELF
+                LOCAL PRIVATE SHELF
               </span>
             </div>
           </Link>
 
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
             {currentReader && (
               <div className="hidden items-center gap-1 rounded-pill bg-white p-1 shadow-sm ring-1 ring-coral/10 sm:flex">
-                {NAV_ITEMS.map((item) => {
+                {NAV_ITEMS.map(item => {
                   const active = pathname === item.href;
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`rounded-pill px-3.5 py-2 text-sm font-bold transition-all ${
-                        active
-                          ? "bg-coral/15 text-coral-dark"
-                          : "text-text-soft hover:bg-coral/8 hover:text-coral-dark"
-                      }`}
+                      className={`rounded-pill px-3.5 py-2 text-sm font-bold transition-all ${active ? "bg-coral/15 text-coral-dark" : "text-text-soft hover:bg-coral/8 hover:text-coral-dark"}`}
                     >
                       <span className="mr-1.5">{item.emoji}</span>{item.label}
                     </Link>
@@ -55,17 +73,33 @@ export default function Navbar() {
             )}
 
             {currentReader ? (
-              <div className="flex max-w-[150px] items-center gap-2 rounded-pill bg-coral/10 px-3 py-2 text-sm font-bold text-coral-dark ring-1 ring-coral/10">
-                <span className="text-base">{currentReader.emoji}</span>
-                <span className="truncate">{currentReader.name}</span>
-              </div>
+              <>
+                <div className="flex max-w-[120px] items-center gap-2 rounded-pill bg-coral/10 px-3 py-2 text-sm font-bold text-coral-dark ring-1 ring-coral/10 sm:max-w-[150px]">
+                  <span className="text-base">{currentReader.emoji}</span>
+                  <span className="truncate">{currentReader.name}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={downloadBackup}
+                  disabled={exporting}
+                  title="导出加密备份"
+                  aria-label="导出加密备份"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm shadow-sm ring-1 ring-coral/10 hover:-translate-y-0.5 hover:text-coral-dark disabled:opacity-50 sm:h-auto sm:w-auto sm:rounded-pill sm:px-3 sm:py-2"
+                >
+                  <span>📦</span><span className="ml-1.5 hidden text-xs font-bold sm:inline">{exporting ? "导出中" : "备份"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={logout}
+                  title="锁定书架"
+                  aria-label="锁定书架"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm shadow-sm ring-1 ring-coral/10 hover:-translate-y-0.5 hover:text-coral-dark sm:h-auto sm:w-auto sm:rounded-pill sm:px-3 sm:py-2"
+                >
+                  <span>🔒</span><span className="ml-1.5 hidden text-xs font-bold sm:inline">锁定</span>
+                </button>
+              </>
             ) : (
-              <a
-                href="#github-login"
-                className="rounded-pill bg-[#24292f] px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:text-sm"
-              >
-                GitHub 登录
-              </a>
+              <div className="rounded-pill bg-mint/35 px-3 py-2 text-xs font-bold text-text-soft">🔐 本地加密</div>
             )}
           </div>
         </div>
@@ -73,15 +107,13 @@ export default function Navbar() {
 
       {currentReader && (
         <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center justify-around rounded-[1.6rem] border border-white/90 bg-white/90 p-1.5 shadow-[0_18px_55px_rgba(92,75,81,0.18)] backdrop-blur-xl sm:hidden">
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.map(item => {
             const active = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex min-w-[82px] flex-col items-center gap-0.5 rounded-[1.2rem] px-3 py-2 text-[11px] font-bold transition-all ${
-                  active ? "bg-coral/12 text-coral-dark" : "text-text-light"
-                }`}
+                className={`flex min-w-[82px] flex-col items-center gap-0.5 rounded-[1.2rem] px-3 py-2 text-[11px] font-bold transition-all ${active ? "bg-coral/12 text-coral-dark" : "text-text-light"}`}
               >
                 <span className="text-lg leading-none">{item.emoji}</span>
                 <span>{item.label}</span>
