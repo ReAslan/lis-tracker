@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useReader } from "@/context/ReaderContext";
@@ -23,8 +23,12 @@ export default function LegacyMigrationPage() {
   const [migrating, setMigrating] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [hasLegacy, setHasLegacy] = useState<boolean | null>(null);
 
-  const hasLegacy = hasLegacyGistCredentials();
+  useEffect(() => {
+    setHasLegacy(hasLegacyGistCredentials());
+  }, []);
+
   const selected = readers.find(item => item.reader.id === selectedId);
 
   async function handleLoad() {
@@ -84,6 +88,7 @@ export default function LegacyMigrationPage() {
     setLoaded(false);
     setSelectedId("");
     setError("");
+    setHasLegacy(false);
   }
 
   return (
@@ -103,7 +108,12 @@ export default function LegacyMigrationPage() {
         </Link>
       </div>
 
-      {!hasLegacy ? (
+      {hasLegacy === null ? (
+        <div className="rounded-[2rem] border border-white bg-white/80 p-8 text-center shadow-sm">
+          <div className="inline-block animate-pulse text-4xl">🔐</div>
+          <p className="mt-3 text-sm font-bold text-text-soft">正在检查这台浏览器的旧版数据…</p>
+        </div>
+      ) : !hasLegacy ? (
         <div className="rounded-[2rem] border border-white bg-white/80 p-7 shadow-sm sm:p-9">
           <div className="text-4xl">🔎</div>
           <h2 className="mt-4 font-cute text-xl font-black text-text-warm">这台浏览器没有发现旧版登录信息</h2>
@@ -131,6 +141,7 @@ export default function LegacyMigrationPage() {
                 {loading ? "正在读取..." : loaded ? "重新读取" : "读取旧版数据"}
               </button>
             </div>
+            {error && !selected && <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-bold leading-5 text-red-500">❌ {error}</div>}
           </div>
 
           {loaded && (
