@@ -1,6 +1,8 @@
 # Li's Tracker CloudBase API
 
-这个目录是 `lis-tracker` 的国内后端。GitHub Pages 只托管静态前端；CloudBase 云函数负责登录鉴权，并使用服务端 GitHub Token 读写一个 **GitHub Private Repository**。不要把用户数据放在 Secret Gist：Secret Gist 不是严格意义上的私有存储，知道链接的人仍可访问。
+这个目录是 `lis-tracker` 的国内后端。GitHub Pages 只托管静态前端；CloudBase **普通云函数 + HTTP 访问服务**负责登录鉴权，并使用服务端 GitHub Token 读写一个 **GitHub Private Repository**。
+
+不要把用户数据放在 Secret Gist：Secret Gist 不是严格意义上的私有存储，知道链接的人仍可访问。
 
 ## 1. 创建私有数据仓库
 
@@ -19,42 +21,55 @@ data/lis-tracker-data.json
 
 ## 2. 创建新的 GitHub Token
 
-请撤销此前暴露过的旧 Token，并新建一个只服务于此后端的 Token。推荐使用 Fine-grained personal access token：
+请撤销此前暴露过的旧 Token，并新建一个只服务于此后端的 Fine-grained personal access token：
 
-- Repository access：只选择 `lis-tracker-data`
+- Resource owner：`ReAslan`
+- Repository access：Only select repositories → `lis-tracker-data`
 - Repository permissions → Contents：Read and write
 
 不要把新 Token 写进代码、GitHub Pages 变量或聊天消息。
 
-## 3. CloudBase 环境变量
+## 3. 创建 CloudBase 普通云函数
 
-在 CloudBase 云函数中设置以下变量，**不要写入仓库源码**：
+在 CloudBase 控制台新建 **普通云函数**，不是 HTTP 云函数：
+
+- 函数名：例如 `lis-api`
+- 运行时：Node.js 18.x 或更新版本
+- 内存：免费版固定 256 MB
+- 入口：`index.main`
+- 代码：上传或粘贴本目录的 `index.js`
+
+本函数没有第三方 npm 依赖，不需要 `package.json`，也不需要 `scf_bootstrap`。
+
+免费体验环境当前提供 3000 资源点/月；免费版云函数单次超时上限 3 秒。
+
+## 4. CloudBase 环境变量
+
+在函数配置中设置以下变量，**不要写入仓库源码**：
 
 - `LIS_GITHUB_TOKEN`：上一步生成的新 Token。
 - `LIS_GITHUB_REPO`：`ReAslan/lis-tracker-data`。
 - `LIS_GITHUB_DATA_PATH`：可选；默认 `data/lis-tracker-data.json`。
-- `LIS_SESSION_SECRET`：至少 32 个字符的随机字符串，用于签名登录会话。建议 64 个以上随机字符。
+- `LIS_SESSION_SECRET`：至少 32 个字符的随机字符串，用于签名登录会话；建议 64 个以上随机字符。
 - `LIS_ALLOWED_ORIGINS`：正式站点填写 `https://reaslan.github.io`；本地调试可写 `https://reaslan.github.io,http://localhost:3000`。
 
-## 4. CloudBase 函数建议
+## 5. 给普通云函数开启 HTTP 访问
 
-- Node.js 18 或更新运行时。
-- 256 MB 内存即可。
-- 免费体验环境当前提供 3000 资源点/月；免费版云函数固定 256 MB，单次超时上限 3 秒。
-- 创建 HTTP 访问服务路由，将一个 HTTPS URL 指向此函数。
-- CORS 允许 `https://reaslan.github.io`，方法允许 `POST, OPTIONS`，请求头允许 `Content-Type, Authorization`。
+在 CloudBase 的「HTTP 访问服务」中创建一条路由，指向 `lis-api` 普通云函数。
 
-函数入口：
+建议：
 
-```text
-index.main
-```
+- 使用 HTTPS。
+- 触发路径可设置为 `/lis-api`。
+- 跨域允许 `https://reaslan.github.io`。
+- 方法允许 `POST, OPTIONS`。
+- 请求头允许 `Content-Type, Authorization`。
 
-代码没有额外 npm 依赖，使用 Node.js 内置 `crypto` 和 Node 18 自带 `fetch`。
+CloudBase 会把标准 HTTP 请求转换成普通云函数的 `event`：其中包含 `httpMethod`、`headers`、`body` 和 `isBase64Encoded`，正好与 `index.js` 的处理方式一致。
 
-## 5. GitHub Pages 配置
+## 6. GitHub Pages 配置
 
-CloudBase HTTP URL 创建后，在前端仓库：
+取得 CloudBase HTTP URL 后，在前端仓库：
 
 `Settings → Secrets and variables → Actions → Variables → New repository variable`
 
@@ -62,7 +77,7 @@ CloudBase HTTP URL 创建后，在前端仓库：
 
 ```text
 Name: LIS_API_URL
-Value: https://你的-cloudbase-http-地址
+Value: https://你的-cloudbase-http-地址/lis-api
 ```
 
 `.github/workflows/deploy.yml` 会在构建时将它注入为 `NEXT_PUBLIC_LIS_API_URL`。这个 URL 不是密钥，可以公开。
@@ -94,4 +109,4 @@ Value: https://你的-cloudbase-http-地址
 
 ## 旧 Gist 数据迁移
 
-如果旧站点已有数据，不要删除旧 Gist。先把其中的 `lis-tracker-data.json` 内容复制到新私有仓库的 `data/lis-tracker-data.json`，确认新站登录、读取、保存都正常后，再删除旧 Gist。
+如果旧站点已有数据，不要先删除旧 Gist。把旧 Gist 中 `lis-tracker-data.json` 的内容复制到新私有仓库的 `data/lis-tracker-data.json`。确认新站可以登录、读取和保存后，再删除旧 Gist。
