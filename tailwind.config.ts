@@ -21,6 +21,16 @@ const config: Config = {
         "text-soft": "#8b7b80",
         "text-light": "#b5a5aa",
       },
+      opacity: {
+        8: "0.08",
+        12: "0.12",
+        15: "0.15",
+        35: "0.35",
+        45: "0.45",
+        55: "0.55",
+        85: "0.85",
+        88: "0.88",
+      },
       fontFamily: {
         cute: ["var(--font-cute)", "sans-serif"],
         body: ["var(--font-body)", "sans-serif"],

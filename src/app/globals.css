@@ -9,11 +9,37 @@
   --text-warm: #5c4b51;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: linear-gradient(135deg, #fff0e7 0%, #fff5f5 30%, #f0f0ff 60%, #f5fff5 100%);
   background-attachment: fixed;
   color: var(--text-warm);
   min-height: 100vh;
+}
+
+::selection {
+  background: rgba(255, 143, 171, 0.24);
+  color: var(--text-warm);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(255, 143, 171, 0.2);
+  outline-offset: 2px;
 }
 
 /* Scrollbar - cute thin */
