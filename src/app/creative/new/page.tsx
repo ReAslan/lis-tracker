@@ -4,28 +4,33 @@ import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useReader } from "@/context/ReaderContext";
+import LockedShelf from "@/components/LockedShelf";
 import * as store from "@/lib/githubStore";
 
 export default function NewCreativePage() {
   const router = useRouter();
-  const { currentReader } = useReader();
+  const { currentReader, loading } = useReader();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!currentReader) return;
     setSaving(true);
+    setError("");
     try {
       const entry = await store.createCreativeEntry({ title, content, readerId: currentReader.id });
       router.push(`/creative?id=${entry.id}`);
-    } catch {
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "保存失败，请重试");
       setSaving(false);
     }
   }
 
-  if (!currentReader) return null;
+  if (loading) return <div className="py-24 text-center text-sm font-bold text-text-light">正在检查书架状态...</div>;
+  if (!currentReader) return <LockedShelf />;
 
   const inputClass = "w-full rounded-[1.15rem] border border-coral/15 bg-[#fffdfc] px-4 py-3 text-sm text-text-warm outline-none placeholder:text-text-light/50 focus:border-coral/50 focus:bg-white focus:ring-4 focus:ring-coral/10";
 
@@ -59,6 +64,8 @@ export default function NewCreativePage() {
             <textarea className={`${inputClass} min-h-[360px] resize-y leading-7`} value={content} onChange={(e) => setContent(e.target.value)} required placeholder="写下你的脑洞、CP 重组、代餐小剧场、名场面……" />
           </div>
         </div>
+
+        {error && <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-bold leading-5 text-red-500">❌ {error}</div>}
 
         <div className="mt-6 flex flex-col gap-3 border-t border-coral/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs font-semibold text-text-light">保存以后可以继续编辑，不需要现在就写到满意。</p>
