@@ -4,42 +4,48 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useReader } from "@/context/ReaderContext";
+import LockedShelf from "@/components/LockedShelf";
 import * as store from "@/lib/githubStore";
-import type { CreativeEntry } from "@/lib/githubStore";
+import type { CreativeEntry, Reader } from "@/lib/githubStore";
 
 function CreativeContent() {
   const searchParams = useSearchParams();
-  const { currentReader } = useReader();
+  const { currentReader, loading } = useReader();
   const id = searchParams.get("id");
   const editId = searchParams.get("edit");
 
+  if (loading) return <div className="py-24 text-center text-sm font-bold text-text-light">正在检查书架状态...</div>;
+  if (!currentReader) return <LockedShelf />;
   if (editId) return <CreativeEditView editId={editId} />;
   if (id) return <CreativeDetailView id={id} />;
   return <CreativeListView currentReader={currentReader} />;
 }
 
-function CreativeListView({ currentReader }: { currentReader: any }) {
+function CreativeListView({ currentReader }: { currentReader: Reader }) {
   const [entries, setEntries] = useState<CreativeEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   function load() {
-    if (!currentReader) return;
     setLoading(true);
-    store.getCreativeEntries(currentReader.id).then((data) => {
-      setEntries(data);
-      setLoading(false);
-    });
+    setError("");
+    store.getCreativeEntries(currentReader.id)
+      .then((data) => setEntries(data))
+      .catch((err) => setError(err instanceof Error ? err.message : "读取创作失败"))
+      .finally(() => setLoading(false));
   }
 
   useEffect(() => { load(); }, [currentReader]);
 
   async function handleDelete(id: string) {
     if (!confirm("确定删除吗？")) return;
-    await store.deleteCreativeEntry(id);
-    load();
+    try {
+      await store.deleteCreativeEntry(id);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败，请重试");
+    }
   }
-
-  if (!currentReader) return null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 sm:space-y-8">
@@ -58,6 +64,8 @@ function CreativeListView({ currentReader }: { currentReader: any }) {
           </Link>
         </div>
       </div>
+
+      {error && <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-500">❌ {error}</div>}
 
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -104,21 +112,29 @@ function CreativeDetailView({ id }: { id: string }) {
   const router = useRouter();
   const [entry, setEntry] = useState<CreativeEntry | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    store.getCreativeEntry(id).then((data) => {
-      setEntry(data);
-      setLoading(false);
-    });
+    setLoading(true);
+    setError("");
+    store.getCreativeEntry(id)
+      .then((data) => setEntry(data))
+      .catch((err) => setError(err instanceof Error ? err.message : "读取创作失败"))
+      .finally(() => setLoading(false));
   }, [id]);
 
   async function handleDelete() {
     if (!confirm("确定删除吗？")) return;
-    await store.deleteCreativeEntry(id);
-    router.push("/creative");
+    try {
+      await store.deleteCreativeEntry(id);
+      router.push("/creative");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败，请重试");
+    }
   }
 
   if (loading) return <div className="mx-auto max-w-3xl animate-pulse space-y-4"><div className="h-8 w-1/2 rounded-full bg-coral/10" /></div>;
+  if (error) return <div className="py-24 text-center"><p className="font-bold text-red-500">{error}</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
   if (!entry) return <div className="py-24 text-center"><p className="text-text-soft">创作不存在</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
 
   return (
@@ -149,25 +165,42 @@ function CreativeEditView({ editId }: { editId: string }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [exists, setExists] = useState(true);
 
   useEffect(() => {
-    store.getCreativeEntry(editId).then((data) => {
-      if (data) {
-        setTitle(data.title);
-        setContent(data.content);
-      }
-      setLoading(false);
-    });
+    setLoading(true);
+    setError("");
+    store.getCreativeEntry(editId)
+      .then((data) => {
+        if (data) {
+          setTitle(data.title);
+          setContent(data.content);
+          setExists(true);
+        } else {
+          setExists(false);
+        }
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "读取创作失败"))
+      .finally(() => setLoading(false));
   }, [editId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await store.updateCreativeEntry(editId, { title, content });
-    router.push(`/creative?id=${editId}`);
+    setError("");
+    try {
+      await store.updateCreativeEntry(editId, { title, content });
+      router.push(`/creative?id=${editId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "保存失败，请重试");
+      setSaving(false);
+    }
   }
 
   if (loading) return <div className="mx-auto max-w-3xl animate-pulse"><div className="h-8 w-1/3 rounded-full bg-coral/10" /></div>;
+  if (error) return <div className="py-24 text-center"><p className="font-bold text-red-500">{error}</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
+  if (!exists) return <div className="py-24 text-center"><p className="text-text-soft">创作不存在</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
 
   const inputClass = "w-full rounded-[1.15rem] border border-coral/15 bg-[#fffdfc] px-4 py-3 text-sm text-text-warm outline-none focus:border-coral/50 focus:bg-white focus:ring-4 focus:ring-coral/10";
 
@@ -193,6 +226,7 @@ function CreativeEditView({ editId }: { editId: string }) {
             <textarea className={`${inputClass} min-h-[360px] resize-y leading-7`} value={content} onChange={(e) => setContent(e.target.value)} required />
           </div>
         </div>
+        {error && <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-bold leading-5 text-red-500">❌ {error}</div>}
         <div className="mt-6 flex justify-end gap-2 border-t border-coral/10 pt-5">
           <button type="button" onClick={() => router.back()} className="rounded-pill px-5 py-3 text-sm font-bold text-text-soft hover:bg-coral/5">取消</button>
           <button type="submit" disabled={saving} className="rounded-pill bg-coral px-7 py-3 text-sm font-bold text-white shadow-lg shadow-coral/20 hover:bg-coral-dark disabled:opacity-50">{saving ? "保存中..." : "💾 保存修改"}</button>
