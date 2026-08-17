@@ -39,85 +39,119 @@ export interface CreativeEntry {
   updatedAt: string;
 }
 
+type AuthResult = { reader: Reader; token: string };
+
+const SESSION_KEY = "lis_tracker_session";
+const API_BASE = (process.env.NEXT_PUBLIC_LIS_API_URL || "").replace(/\/$/, "");
+const isBrowser = typeof window !== "undefined";
+
+function getToken(): string {
+  if (!isBrowser) return "";
+  try { return localStorage.getItem(SESSION_KEY) || ""; } catch { return ""; }
+}
+
+function setToken(token: string) {
+  if (!isBrowser) return;
+  try { localStorage.setItem(SESSION_KEY, token); } catch { /* noop */ }
+}
+
+export function logout() {
+  if (!isBrowser) return;
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* noop */ }
+}
+
 async function parseResponse<T>(res: Response): Promise<T> {
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401) logout();
     throw new Error(payload?.error || `请求失败 (${res.status})`);
   }
   return payload as T;
 }
 
-async function query<T>(params: Record<string, string | undefined>): Promise<T> {
-  const qs = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value) qs.set(key, value);
-  });
-  const res = await fetch(`/api/data?${qs.toString()}`, { cache: "no-store" });
-  return parseResponse<T>(res);
-}
+async function request<T>(body: Record<string, unknown>, auth = true): Promise<T> {
+  if (!API_BASE) {
+    throw new Error("网站尚未配置国内数据服务地址 NEXT_PUBLIC_LIS_API_URL");
+  }
 
-async function mutate<T>(body: Record<string, unknown>): Promise<T> {
-  const res = await fetch("/api/data", {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (auth) {
+    const token = getToken();
+    if (!token) throw new Error("请先登录");
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(API_BASE, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
+    cache: "no-store",
   });
   return parseResponse<T>(res);
 }
 
-// The app is configured server-side. No GitHub token is stored in the browser.
 export function isConfigured(): boolean {
-  return true;
+  return !!API_BASE;
 }
 
-export async function getReaders(): Promise<Reader[]> {
-  return query<Reader[]>({ type: "readers" });
+export async function register(name: string, pin: string, emoji: string): Promise<Reader> {
+  const result = await request<AuthResult>({ action: "register", name, pin, emoji }, false);
+  setToken(result.token);
+  return result.reader;
 }
 
-export async function addReader(name: string, emoji: string): Promise<Reader> {
-  return mutate<Reader>({ action: "add-reader", name, emoji });
+export async function login(name: string, pin: string): Promise<Reader> {
+  const result = await request<AuthResult>({ action: "login", name, pin }, false);
+  setToken(result.token);
+  return result.reader;
 }
 
-export async function deleteReader(id: string): Promise<void> {
-  await mutate({ action: "delete-reader", id });
+export async function restoreSession(): Promise<Reader | null> {
+  if (!getToken()) return null;
+  try {
+    return await request<Reader>({ action: "me" });
+  } catch {
+    logout();
+    return null;
+  }
 }
 
-export async function getWorks(readerId: string, status?: string): Promise<Work[]> {
-  return query<Work[]>({ type: "works", readerId, status });
+export async function getWorks(_readerId: string, status?: string): Promise<Work[]> {
+  return request<Work[]>({ action: "list-works", status });
 }
 
 export async function getWork(id: string): Promise<Work | null> {
-  return query<Work | null>({ type: "work", id });
+  return request<Work | null>({ action: "get-work", id });
 }
 
 export async function createWork(work: Omit<Work, "id" | "createdAt" | "updatedAt">): Promise<Work> {
-  return mutate<Work>({ action: "create-work", work });
+  return request<Work>({ action: "create-work", work });
 }
 
 export async function updateWork(id: string, updates: Partial<Work>): Promise<Work> {
-  return mutate<Work>({ action: "update-work", id, updates });
+  return request<Work>({ action: "update-work", id, updates });
 }
 
 export async function deleteWork(id: string): Promise<void> {
-  await mutate({ action: "delete-work", id });
+  await request({ action: "delete-work", id });
 }
 
-export async function getCreativeEntries(readerId: string): Promise<CreativeEntry[]> {
-  return query<CreativeEntry[]>({ type: "creative-entries", readerId });
+export async function getCreativeEntries(_readerId: string): Promise<CreativeEntry[]> {
+  return request<CreativeEntry[]>({ action: "list-creative" });
 }
 
 export async function getCreativeEntry(id: string): Promise<CreativeEntry | null> {
-  return query<CreativeEntry | null>({ type: "creative-entry", id });
+  return request<CreativeEntry | null>({ action: "get-creative", id });
 }
 
 export async function createCreativeEntry(entry: Omit<CreativeEntry, "id" | "createdAt" | "updatedAt">): Promise<CreativeEntry> {
-  return mutate<CreativeEntry>({ action: "create-creative-entry", entry });
+  return request<CreativeEntry>({ action: "create-creative", entry });
 }
 
 export async function updateCreativeEntry(id: string, updates: Partial<CreativeEntry>): Promise<CreativeEntry> {
-  return mutate<CreativeEntry>({ action: "update-creative-entry", id, updates });
+  return request<CreativeEntry>({ action: "update-creative", id, updates });
 }
 
 export async function deleteCreativeEntry(id: string): Promise<void> {
-  await mutate({ action: "delete-creative-entry", id });
+  await request({ action: "delete-creative", id });
 }
