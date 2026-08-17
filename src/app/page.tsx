@@ -9,6 +9,7 @@ import * as store from "@/lib/githubStore";
 import type { Work } from "@/lib/githubStore";
 
 const EMOJIS = ["🍑", "🍒", "🍓", "🍊", "🍋", "🍇", "🥝", "🫐", "🌸", "⭐", "🐱", "🐰", "🐻", "🦊", "🐼"];
+const MAX_BACKUP_BYTES = 10_000_000;
 
 type AuthMode = "login" | "register" | "import";
 
@@ -17,16 +18,20 @@ export default function HomePage() {
   const [works, setWorks] = useState<Work[]>([]);
   const [activeTab, setActiveTab] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     if (!currentReader) {
       setWorks([]);
       setLoading(false);
+      setLoadError("");
       return;
     }
     setLoading(true);
+    setLoadError("");
     store.getWorks(currentReader.id, activeTab || undefined)
       .then(data => setWorks(data))
+      .catch(err => setLoadError(err instanceof Error ? err.message : "读取作品库失败"))
       .finally(() => setLoading(false));
   }, [activeTab, currentReader]);
 
@@ -69,6 +74,12 @@ export default function HomePage() {
       </div>
 
       <StatusTabs active={activeTab} onChange={setActiveTab} />
+
+      {loadError && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold leading-6 text-red-500">
+          ❌ {loadError}
+        </div>
+      )}
 
       {works.length === 0 ? (
         <div className="rounded-[2.5rem] border border-white bg-white/55 py-24 text-center shadow-sm">
@@ -125,6 +136,7 @@ function LocalAuthLanding() {
   const submitImport = async () => {
     setError("");
     if (!backupFile) return setError("请选择备份文件");
+    if (backupFile.size > MAX_BACKUP_BYTES) return setError("备份文件超过 10 MB，已停止读取以保护浏览器内存");
     if (!/^\d{6}$/.test(pin)) return setError("请输入备份对应的 6 位 PIN");
 
     setSubmitting(true);
@@ -234,12 +246,16 @@ function LocalAuthLanding() {
                     <span className="mt-2 block text-sm font-extrabold text-text-warm">
                       {backupFile ? backupFile.name : "选择 .json 备份文件"}
                     </span>
-                    <span className="mt-1 block text-xs font-semibold text-text-light">备份本身仍然是加密的</span>
+                    <span className="mt-1 block text-xs font-semibold text-text-light">备份本身仍然是加密的 · 最大 10 MB</span>
                     <input
                       type="file"
                       accept="application/json,.json"
                       className="hidden"
-                      onChange={event => setBackupFile(event.target.files?.[0] || null)}
+                      onChange={event => {
+                        const file = event.target.files?.[0] || null;
+                        setBackupFile(file);
+                        setError(file && file.size > MAX_BACKUP_BYTES ? "备份文件超过 10 MB，无法导入" : "");
+                      }}
                     />
                   </label>
                   <PinInput value={pin} onChange={setPin} placeholder="备份对应的 6 位 PIN" onEnter={submitImport} />
