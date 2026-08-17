@@ -57,6 +57,17 @@ function browserStorage(): Storage {
   return window.localStorage;
 }
 
+function writeStorage(key: string, value: string) {
+  try {
+    browserStorage().setItem(key, value);
+  } catch (err) {
+    if (err instanceof DOMException && (err.name === "QuotaExceededError" || err.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
+      throw new Error("浏览器本地存储空间不足，无法完成迁移。请先清理部分站点数据后再试");
+    }
+    throw new Error("浏览器拒绝写入本地数据，请检查隐私/存储设置");
+  }
+}
+
 function normalizeName(name: string): string {
   return name.trim().normalize("NFKC").toLocaleLowerCase();
 }
@@ -89,7 +100,7 @@ function getMigrationMap(): MigrationMap {
 }
 
 function saveMigrationMap(map: MigrationMap) {
-  browserStorage().setItem(LEGACY_MIGRATION_MAP_KEY, JSON.stringify(map));
+  writeStorage(LEGACY_MIGRATION_MAP_KEY, JSON.stringify(map));
 }
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
@@ -197,9 +208,6 @@ async function requestGist(gistId: string, token: string): Promise<any> {
       const response = await fetchWithTimeout(url, { headers: githubHeaders(attemptToken || undefined) });
       lastStatus = response.status;
       if (response.ok) return response.json();
-
-      // A revoked/expired legacy token can turn an otherwise readable secret Gist into a 401/403.
-      // Retry once without Authorization because secret Gists are unlisted rather than truly private.
       if (attemptToken && (response.status === 401 || response.status === 403 || response.status === 404)) continue;
       break;
     } catch (err) {
@@ -226,7 +234,7 @@ async function readLegacyGistFile(gist: any, token: string): Promise<string> {
     throw new Error("旧 Gist 数据超过 10 MB，无法在浏览器中自动迁移");
   }
 
-  const attempts = ["", token].filter((value, index, list) => value || (index === 0 && !list.slice(0, index).includes(value)));
+  const attempts = token ? ["", token] : [""];
   let lastStatus = 0;
 
   for (const attemptToken of attempts) {
@@ -249,9 +257,7 @@ async function readLegacyGistFile(gist: any, token: string): Promise<string> {
 
 export function hasLegacyGistCredentials(): boolean {
   if (typeof window === "undefined") return false;
-  const store = browserStorage();
-  // Gist ID alone is enough to attempt read-only recovery; the stored token may already have been revoked.
-  return Boolean(store.getItem(LEGACY_GIST_ID_KEY));
+  return Boolean(browserStorage().getItem(LEGACY_GIST_ID_KEY));
 }
 
 export function clearLegacyCredentials() {
@@ -266,9 +272,7 @@ export async function loadLegacyReaders(): Promise<LegacyReaderSummary[]> {
   const store = browserStorage();
   const gistId = store.getItem(LEGACY_GIST_ID_KEY);
   const token = store.getItem(LEGACY_TOKEN_KEY) || "";
-  if (!gistId) {
-    throw new Error("这台浏览器没有检测到旧版 Gist ID");
-  }
+  if (!gistId) throw new Error("这台浏览器没有检测到旧版 Gist ID");
 
   const gist = await requestGist(gistId, token);
   const text = await readLegacyGistFile(gist, token);
@@ -327,7 +331,7 @@ export async function importLegacyReader(
   if (store.getItem(key) && !overwrite) throw new Error("本机已经存在同名书架");
 
   const encrypted = await encryptLegacyReader(snapshot, sourceReader, targetReader, pin);
-  store.setItem(key, JSON.stringify(encrypted));
+  writeStorage(key, JSON.stringify(encrypted));
 
   const migrationMap = getMigrationMap();
   migrationMap[sourceReader.id] = {
