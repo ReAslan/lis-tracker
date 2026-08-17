@@ -6,6 +6,8 @@ import Link from "next/link";
 import RatingStars from "@/components/RatingStars";
 import TagCloud from "@/components/TagCloud";
 import CpChemistryCard from "@/components/CpChemistryCard";
+import LockedShelf from "@/components/LockedShelf";
+import { useReader } from "@/context/ReaderContext";
 import * as store from "@/lib/githubStore";
 import type { Work } from "@/lib/githubStore";
 
@@ -25,27 +27,43 @@ const TYPE_CONFIG: Record<string, { label: string; emoji: string }> = {
 function WorkDetail() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { currentReader, loading: readerLoading } = useReader();
   const id = searchParams.get("id");
   const [work, setWork] = useState<Work | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (id) {
-      store.getWork(id).then((data) => {
-        setWork(data);
-        setLoading(false);
-      });
+    if (!id || !currentReader) {
+      setWork(null);
+      setLoading(false);
+      return;
     }
-  }, [id]);
+
+    setLoading(true);
+    setError("");
+    store.getWork(id)
+      .then((data) => setWork(data))
+      .catch((err) => setError(err instanceof Error ? err.message : "读取作品失败"))
+      .finally(() => setLoading(false));
+  }, [id, currentReader]);
 
   async function handleDelete() {
     if (!id || !confirm("确定删除吗？")) return;
-    await store.deleteWork(id);
-    router.push("/");
+    setError("");
+    try {
+      await store.deleteWork(id);
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败，请重试");
+    }
   }
 
+  if (readerLoading) return <div className="py-24 text-center text-sm font-bold text-text-light">正在检查书架状态...</div>;
+  if (!currentReader) return <LockedShelf />;
   if (!id) return <div className="py-24 text-center"><p className="text-text-soft">作品 ID 未提供</p><Link href="/" className="mt-3 inline-block font-bold text-coral">返回作品库</Link></div>;
   if (loading) return <div className="mx-auto max-w-4xl animate-pulse space-y-6"><div className="h-8 w-1/3 rounded-full bg-coral/10" /><div className="h-80 rounded-[2rem] bg-white/60" /></div>;
+  if (error && !work) return <div className="py-24 text-center"><p className="font-bold text-red-500">{error}</p><Link href="/" className="mt-3 inline-block font-bold text-coral">返回作品库</Link></div>;
   if (!work) return <div className="py-24 text-center"><p className="text-text-soft">作品不存在</p><Link href="/" className="mt-3 inline-block font-bold text-coral">返回作品库</Link></div>;
 
   const progressPercent = work.progressTotal && work.progressTotal > 0 ? Math.round((work.progressCurrent / work.progressTotal) * 100) : 0;
@@ -55,6 +73,8 @@ function WorkDetail() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 sm:space-y-8">
       <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-bold text-text-light hover:text-coral-dark">← 返回作品库</Link>
+
+      {error && <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-500">❌ {error}</div>}
 
       <section className="overflow-hidden rounded-[2.2rem] border border-white/90 bg-white/88 shadow-[0_22px_70px_rgba(92,75,81,0.09)] backdrop-blur-xl">
         <div className="grid gap-0 sm:grid-cols-[220px_1fr]">
