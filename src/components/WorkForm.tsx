@@ -67,14 +67,16 @@ export default function WorkForm({ initialData }: Props) {
     return base;
   });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const isEdit = !!initialData?.id;
-  const set = (field: keyof FormData, value: any) => setForm((prev) => ({ ...prev, [field]: value }));
+  const set = (field: keyof FormData, value: FormData[keyof FormData]) => setForm((prev) => ({ ...prev, [field]: value }));
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!currentReader) return;
     setSaving(true);
+    setSaveError("");
 
     const data = {
       ...form,
@@ -92,8 +94,8 @@ export default function WorkForm({ initialData }: Props) {
         const created = await store.createWork(data);
         router.push(`/works?id=${created.id}`);
       }
-      router.refresh();
-    } catch {
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "保存失败，请重试");
       setSaving(false);
     }
   }
@@ -205,6 +207,12 @@ export default function WorkForm({ initialData }: Props) {
           </div>
         </div>
       </section>
+
+      {saveError && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold leading-6 text-red-500">
+          ❌ {saveError}
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 rounded-[1.75rem] border border-white/90 bg-white/90 p-4 shadow-[0_14px_45px_rgba(92,75,81,0.07)] sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div>
