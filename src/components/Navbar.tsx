@@ -99,7 +99,15 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              <div className="rounded-pill bg-mint/35 px-3 py-2 text-xs font-bold text-text-soft">🔐 本地加密</div>
+              <>
+                <Link
+                  href="/migrate"
+                  className={`rounded-pill px-3 py-2 text-xs font-extrabold transition-all sm:px-4 sm:text-sm ${pathname === "/migrate" ? "bg-coral/15 text-coral-dark" : "bg-white/85 text-text-soft shadow-sm ring-1 ring-coral/10 hover:text-coral-dark"}`}
+                >
+                  📦 <span className="hidden sm:inline">旧版迁移</span><span className="sm:hidden">迁移</span>
+                </Link>
+                <div className="hidden rounded-pill bg-mint/35 px-3 py-2 text-xs font-bold text-text-soft sm:block">🔐 本地加密</div>
+              </>
             )}
           </div>
         </div>
