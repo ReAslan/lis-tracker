@@ -48,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
           <div className="relative z-10">
             <Navbar />
-            <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
+            <main className="mx-auto max-w-6xl px-4 py-6 pb-28 sm:py-10 sm:pb-10">{children}</main>
           </div>
         </ReaderProvider>
       </body>
