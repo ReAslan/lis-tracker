@@ -91,6 +91,17 @@ function storage(): Storage {
   return window.localStorage;
 }
 
+function writeStorage(key: string, value: string) {
+  try {
+    storage().setItem(key, value);
+  } catch (err) {
+    if (err instanceof DOMException && (err.name === "QuotaExceededError" || err.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
+      throw new Error("浏览器本地存储空间不足。请先导出备份并清理部分站点数据后再试");
+    }
+    throw new Error("浏览器拒绝写入本地数据，请检查隐私/存储设置");
+  }
+}
+
 function normalizeName(name: string): string {
   return name.trim().normalize("NFKC").toLocaleLowerCase();
 }
@@ -132,6 +143,7 @@ async function profileKeyForName(name: string): Promise<string> {
 
 async function deriveVaultKey(pin: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
   assertPin(pin);
+  if (iterations !== PBKDF2_ITERATIONS) throw new Error("不支持的加密参数");
   const material = await crypto.subtle.importKey(
     "raw",
     encoder.encode(pin),
@@ -180,7 +192,7 @@ async function decryptVault(stored: StoredVault, key: CryptoKey): Promise<VaultD
     }
     return parsed;
   } catch {
-    throw new Error("昵称或 PIN 不正确");
+    throw new Error("昵称或 PIN 不正确，或本地书架数据已损坏");
   }
 }
 
@@ -190,6 +202,7 @@ function parseStoredVault(raw: string): StoredVault {
     parsed?.version !== VAULT_VERSION ||
     parsed?.kdf?.name !== "PBKDF2" ||
     parsed?.kdf?.hash !== "SHA-256" ||
+    parsed?.kdf?.iterations !== PBKDF2_ITERATIONS ||
     parsed?.cipher?.name !== "AES-GCM" ||
     !parsed.kdf.salt ||
     !parsed.cipher.iv ||
@@ -205,11 +218,12 @@ function getActive(): ActiveVault {
   return activeVault;
 }
 
-async function persistActive(): Promise<void> {
+async function commitActive(nextData: VaultData): Promise<void> {
   const active = getActive();
-  const nextStored = await encryptVault(active.data, active.key, active.stored);
-  storage().setItem(PROFILE_PREFIX + active.profileKey, JSON.stringify(nextStored));
+  const nextStored = await encryptVault(nextData, active.key, active.stored);
+  writeStorage(PROFILE_PREFIX + active.profileKey, JSON.stringify(nextStored));
   active.stored = nextStored;
+  active.data = nextData;
 }
 
 export function isConfigured(): boolean {
@@ -229,6 +243,7 @@ export async function register(name: string, pin: string, emoji: string): Promis
   assertPin(pin);
   const cleanName = name.trim();
   if (!cleanName) throw new Error("请输入昵称");
+  if (cleanName.length > 24) throw new Error("昵称最多 24 个字符");
 
   const profileKey = await profileKeyForName(cleanName);
   if (storage().getItem(PROFILE_PREFIX + profileKey)) {
@@ -255,7 +270,7 @@ export async function register(name: string, pin: string, emoji: string): Promis
   };
   const data: VaultData = { reader, works: [], creativeEntries: [] };
   const encrypted = await encryptVault(data, key, stored);
-  storage().setItem(PROFILE_PREFIX + profileKey, JSON.stringify(encrypted));
+  writeStorage(PROFILE_PREFIX + profileKey, JSON.stringify(encrypted));
   activeVault = { profileKey, key, stored: encrypted, data };
   return reader;
 }
@@ -327,7 +342,7 @@ export async function importBackup(text: string, pin: string, overwrite = false)
     throw new Error("本机已经存在同名书架");
   }
 
-  storage().setItem(storageKey, JSON.stringify(stored));
+  writeStorage(storageKey, JSON.stringify(stored));
   activeVault = { profileKey: backup.profileKey, key, stored, data };
   return data.reader;
 }
@@ -355,8 +370,11 @@ export async function createWork(work: Omit<Work, "id" | "createdAt" | "updatedA
     createdAt: now,
     updatedAt: now,
   };
-  active.data.works.push(newWork);
-  await persistActive();
+  const nextData: VaultData = {
+    ...active.data,
+    works: [...active.data.works, newWork],
+  };
+  await commitActive(nextData);
   return newWork;
 }
 
@@ -365,7 +383,7 @@ export async function updateWork(id: string, updates: Partial<Work>): Promise<Wo
   const index = active.data.works.findIndex(work => work.id === id && work.readerId === active.data.reader.id);
   if (index === -1) throw new Error("作品不存在");
   const current = active.data.works[index];
-  active.data.works[index] = {
+  const updated: Work = {
     ...current,
     ...updates,
     id: current.id,
@@ -373,16 +391,18 @@ export async function updateWork(id: string, updates: Partial<Work>): Promise<Wo
     createdAt: current.createdAt,
     updatedAt: new Date().toISOString(),
   };
-  await persistActive();
-  return active.data.works[index];
+  const works = [...active.data.works];
+  works[index] = updated;
+  await commitActive({ ...active.data, works });
+  return updated;
 }
 
 export async function deleteWork(id: string): Promise<void> {
   const active = getActive();
-  active.data.works = active.data.works.filter(
+  const works = active.data.works.filter(
     work => !(work.id === id && work.readerId === active.data.reader.id),
   );
-  await persistActive();
+  await commitActive({ ...active.data, works });
 }
 
 export async function getCreativeEntries(readerId: string): Promise<CreativeEntry[]> {
@@ -411,8 +431,11 @@ export async function createCreativeEntry(
     createdAt: now,
     updatedAt: now,
   };
-  active.data.creativeEntries.push(newEntry);
-  await persistActive();
+  const nextData: VaultData = {
+    ...active.data,
+    creativeEntries: [...active.data.creativeEntries, newEntry],
+  };
+  await commitActive(nextData);
   return newEntry;
 }
 
@@ -426,7 +449,7 @@ export async function updateCreativeEntry(
   );
   if (index === -1) throw new Error("创作不存在");
   const current = active.data.creativeEntries[index];
-  active.data.creativeEntries[index] = {
+  const updated: CreativeEntry = {
     ...current,
     ...updates,
     id: current.id,
@@ -434,14 +457,16 @@ export async function updateCreativeEntry(
     createdAt: current.createdAt,
     updatedAt: new Date().toISOString(),
   };
-  await persistActive();
-  return active.data.creativeEntries[index];
+  const creativeEntries = [...active.data.creativeEntries];
+  creativeEntries[index] = updated;
+  await commitActive({ ...active.data, creativeEntries });
+  return updated;
 }
 
 export async function deleteCreativeEntry(id: string): Promise<void> {
   const active = getActive();
-  active.data.creativeEntries = active.data.creativeEntries.filter(
+  const creativeEntries = active.data.creativeEntries.filter(
     entry => !(entry.id === id && entry.readerId === active.data.reader.id),
   );
-  await persistActive();
+  await commitActive({ ...active.data, creativeEntries });
 }
