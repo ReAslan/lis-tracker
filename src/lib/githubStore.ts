@@ -117,6 +117,12 @@ function base64ToBytes(value: string): Uint8Array {
   return bytes;
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 async function profileKeyForName(name: string): Promise<string> {
   const normalized = normalizeName(name);
   if (!normalized) throw new Error("请输入昵称");
@@ -135,7 +141,7 @@ async function deriveVaultKey(pin: string, salt: Uint8Array, iterations: number)
   );
 
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: toArrayBuffer(salt), iterations, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -146,7 +152,7 @@ async function deriveVaultKey(pin: string, salt: Uint8Array, iterations: number)
 async function encryptVault(data: VaultData, key: CryptoKey, stored: StoredVault): Promise<StoredVault> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: toArrayBuffer(iv) },
     key,
     encoder.encode(JSON.stringify(data)),
   );
@@ -164,9 +170,9 @@ async function encryptVault(data: VaultData, key: CryptoKey, stored: StoredVault
 async function decryptVault(stored: StoredVault, key: CryptoKey): Promise<VaultData> {
   try {
     const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: base64ToBytes(stored.cipher.iv) },
+      { name: "AES-GCM", iv: toArrayBuffer(base64ToBytes(stored.cipher.iv)) },
       key,
-      base64ToBytes(stored.cipher.data),
+      toArrayBuffer(base64ToBytes(stored.cipher.data)),
     );
     const parsed = JSON.parse(decoder.decode(decrypted)) as VaultData;
     if (!parsed?.reader?.id || !Array.isArray(parsed.works) || !Array.isArray(parsed.creativeEntries)) {
