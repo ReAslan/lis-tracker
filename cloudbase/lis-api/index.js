@@ -1,26 +1,30 @@
 const crypto = require("crypto");
 
-const DATA_FILE = "lis-tracker-data.json";
+const DEFAULT_DATA_PATH = "data/lis-tracker-data.json";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const LOCK_MS = 10 * 60 * 1000;
 const MAX_FAILED_ATTEMPTS = 5;
 
 function config() {
   const token = process.env.LIS_GITHUB_TOKEN;
-  const gistId = process.env.LIS_GIST_ID;
+  const repo = process.env.LIS_GITHUB_REPO || "ReAslan/lis-tracker-data";
+  const dataPath = process.env.LIS_GITHUB_DATA_PATH || DEFAULT_DATA_PATH;
   const sessionSecret = process.env.LIS_SESSION_SECRET;
   const allowedOrigins = (process.env.LIS_ALLOWED_ORIGINS || "https://reaslan.github.io")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 
-  if (!token || !gistId || !sessionSecret) {
-    throw new Error("服务器缺少 LIS_GITHUB_TOKEN、LIS_GIST_ID 或 LIS_SESSION_SECRET");
+  if (!token || !repo || !sessionSecret) {
+    throw new Error("服务器缺少 LIS_GITHUB_TOKEN、LIS_GITHUB_REPO 或 LIS_SESSION_SECRET");
+  }
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+    throw new Error("LIS_GITHUB_REPO 必须是 owner/repo 格式");
   }
   if (sessionSecret.length < 32) {
     throw new Error("LIS_SESSION_SECRET 至少需要 32 个字符");
   }
-  return { token, gistId, sessionSecret, allowedOrigins };
+  return { token, repo, dataPath, sessionSecret, allowedOrigins };
 }
 
 function emptyData() {
@@ -91,21 +95,25 @@ function verifySession(token) {
   }
 }
 
-async function loadData() {
-  const { token, gistId } = config();
-  const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
-  if (!res.ok) throw new Error(`读取 GitHub 数据失败 (${res.status})`);
-  const gist = await res.json();
-  const file = gist.files && gist.files[DATA_FILE];
-  if (!file || !file.content) return emptyData();
+function githubHeaders(token) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+}
+
+function encodedPath(path) {
+  return String(path)
+    .split("/")
+    .filter(Boolean)
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+}
+
+function parseStoredData(raw) {
   try {
-    const parsed = JSON.parse(file.content);
+    const parsed = JSON.parse(raw);
     return {
       readers: Array.isArray(parsed.readers) ? parsed.readers : [],
       works: Array.isArray(parsed.works) ? parsed.works : [],
@@ -116,23 +124,51 @@ async function loadData() {
   }
 }
 
-async function saveData(data) {
-  const { token, gistId } = config();
-  const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-    method: "PATCH",
+async function loadData() {
+  const { token, repo, dataPath } = config();
+  const url = `https://api.github.com/repos/${repo}/contents/${encodedPath(dataPath)}`;
+  const res = await fetch(url, { headers: githubHeaders(token) });
+
+  if (res.status === 404) {
+    return { data: emptyData(), sha: null };
+  }
+  if (!res.ok) {
+    throw new Error(`读取 GitHub 私有仓库数据失败 (${res.status})`);
+  }
+
+  const file = await res.json();
+  if (!file || file.type !== "file" || !file.content) {
+    return { data: emptyData(), sha: file && file.sha ? file.sha : null };
+  }
+
+  const raw = Buffer.from(String(file.content).replace(/\n/g, ""), "base64").toString("utf8");
+  return { data: parseStoredData(raw), sha: file.sha || null };
+}
+
+async function saveData(data, currentSha) {
+  const { token, repo, dataPath } = config();
+  const url = `https://api.github.com/repos/${repo}/contents/${encodedPath(dataPath)}`;
+  const body = {
+    message: "Update Li's Tracker data",
+    content: Buffer.from(JSON.stringify(data, null, 2), "utf8").toString("base64"),
+  };
+  if (currentSha) body.sha = currentSha;
+
+  const res = await fetch(url, {
+    method: "PUT",
     headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
+      ...githubHeaders(token),
       "Content-Type": "application/json",
-      "X-GitHub-Api-Version": "2022-11-28",
     },
-    body: JSON.stringify({
-      files: {
-        [DATA_FILE]: { content: JSON.stringify(data, null, 2) },
-      },
-    }),
+    body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`保存 GitHub 数据失败 (${res.status})`);
+
+  if (res.status === 409) {
+    throw new Error("数据刚被其他用户更新，请重新操作一次");
+  }
+  if (!res.ok) {
+    throw new Error(`保存 GitHub 私有仓库数据失败 (${res.status})`);
+  }
 }
 
 function requestOrigin(event) {
@@ -199,7 +235,9 @@ exports.main = async (event) => {
       return response(event, 200, { ok: true });
     }
 
-    const data = await loadData();
+    const snapshot = await loadData();
+    const data = snapshot.data;
+    const currentSha = snapshot.sha;
     const now = new Date().toISOString();
 
     if (action === "register") {
@@ -229,7 +267,7 @@ exports.main = async (event) => {
         };
         data.readers.push(reader);
       }
-      await saveData(data);
+      await saveData(data, currentSha);
       return response(event, 200, { reader: publicReader(reader), token: signSession(reader.id) });
     }
 
@@ -254,14 +292,14 @@ exports.main = async (event) => {
           reader.failedAttempts = failed;
           reader.lockedUntil = null;
         }
-        await saveData(data);
+        await saveData(data, currentSha);
         return response(event, 401, { error: "名字或 PIN 不正确" });
       }
 
       if (reader.failedAttempts || reader.lockedUntil) {
         reader.failedAttempts = 0;
         reader.lockedUntil = null;
-        await saveData(data);
+        await saveData(data, currentSha);
       }
       return response(event, 200, { reader: publicReader(reader), token: signSession(reader.id) });
     }
@@ -294,7 +332,7 @@ exports.main = async (event) => {
         updatedAt: now,
       };
       data.works.push(work);
-      await saveData(data);
+      await saveData(data, currentSha);
       return response(event, 200, work);
     }
 
@@ -310,7 +348,7 @@ exports.main = async (event) => {
         createdAt: old.createdAt,
         updatedAt: now,
       };
-      await saveData(data);
+      await saveData(data, currentSha);
       return response(event, 200, data.works[index]);
     }
 
@@ -318,7 +356,7 @@ exports.main = async (event) => {
       const index = requireOwnedWork(data, body.id, readerId);
       if (index < 0) return response(event, 404, { error: "作品不存在" });
       data.works.splice(index, 1);
-      await saveData(data);
+      await saveData(data, currentSha);
       return response(event, 200, { ok: true });
     }
 
@@ -342,7 +380,7 @@ exports.main = async (event) => {
         updatedAt: now,
       };
       data.creativeEntries.push(entry);
-      await saveData(data);
+      await saveData(data, currentSha);
       return response(event, 200, entry);
     }
 
@@ -358,7 +396,7 @@ exports.main = async (event) => {
         createdAt: old.createdAt,
         updatedAt: now,
       };
-      await saveData(data);
+      await saveData(data, currentSha);
       return response(event, 200, data.creativeEntries[index]);
     }
 
@@ -366,7 +404,7 @@ exports.main = async (event) => {
       const index = requireOwnedCreative(data, body.id, readerId);
       if (index < 0) return response(event, 404, { error: "创作记录不存在" });
       data.creativeEntries.splice(index, 1);
-      await saveData(data);
+      await saveData(data, currentSha);
       return response(event, 200, { ok: true });
     }
 
