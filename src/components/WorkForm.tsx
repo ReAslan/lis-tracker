@@ -25,6 +25,7 @@ const STATUS_OPTIONS = [
 ];
 
 type FormData = Omit<Work, "id" | "createdAt" | "updatedAt">;
+type SectionTone = "coral" | "mint" | "sunny" | "lavender";
 
 const EMPTY_FORM: FormData = {
   title: "", author: "", type: "novel", serialStatus: "ongoing", coverUrl: "",
@@ -33,6 +34,25 @@ const EMPTY_FORM: FormData = {
   cpPersonality: "", cpTension: "", cpFamousLines: "",
   tags: "", tropes: "", notes: "", readerId: "",
 };
+
+function SectionTitle({ emoji, title, hint, tone = "coral" }: { emoji: string; title: string; hint: string; tone?: SectionTone }) {
+  const toneClass: Record<SectionTone, string> = {
+    coral: "bg-coral/12 text-coral-dark",
+    mint: "bg-mint/45 text-emerald-700",
+    sunny: "bg-sunny/45 text-amber-700",
+    lavender: "bg-lavender/35 text-purple-600",
+  };
+
+  return (
+    <div className="mb-5 flex items-start gap-3">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg ${toneClass[tone]}`}>{emoji}</div>
+      <div>
+        <h2 className="font-cute text-base font-extrabold text-text-warm sm:text-lg">{title}</h2>
+        <p className="mt-0.5 text-xs font-semibold leading-relaxed text-text-light">{hint}</p>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   initialData?: Partial<Work>;
@@ -81,25 +101,6 @@ export default function WorkForm({ initialData }: Props) {
   const inputClass = "w-full rounded-[1.15rem] border border-coral/15 bg-[#fffdfc] px-4 py-3 text-sm text-text-warm outline-none placeholder:text-text-light/50 focus:border-coral/50 focus:bg-white focus:ring-4 focus:ring-coral/10";
   const labelClass = "mb-1.5 block text-xs font-extrabold tracking-wide text-text-soft";
   const sectionClass = "rounded-[2rem] border border-white/90 bg-white/90 p-5 shadow-[0_16px_50px_rgba(92,75,81,0.06)] ring-1 ring-coral/5 sm:p-7";
-
-  function SectionTitle({ emoji, title, hint, tone = "coral" }: { emoji: string; title: string; hint: string; tone?: "coral" | "mint" | "sunny" | "lavender" }) {
-    const toneClass = {
-      coral: "bg-coral/12 text-coral-dark",
-      mint: "bg-mint/45 text-emerald-700",
-      sunny: "bg-sunny/45 text-amber-700",
-      lavender: "bg-lavender/35 text-purple-600",
-    }[tone];
-
-    return (
-      <div className="mb-5 flex items-start gap-3">
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg ${toneClass}`}>{emoji}</div>
-        <div>
-          <h2 className="font-cute text-base font-extrabold text-text-warm sm:text-lg">{title}</h2>
-          <p className="mt-0.5 text-xs font-semibold leading-relaxed text-text-light">{hint}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
