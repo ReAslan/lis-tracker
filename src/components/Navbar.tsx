@@ -30,7 +30,9 @@ export default function Navbar() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      window.alert(err instanceof Error ? `导出备份失败：${err.message}` : "导出备份失败，请重试");
     } finally {
       setExporting(false);
     }
