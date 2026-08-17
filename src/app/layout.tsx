@@ -8,8 +8,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
 const nunito = Nunito({ subsets: ["latin"], variable: "--font-cute", weight: ["400", "600", "700", "800"] });
 
 export const metadata: Metadata = {
-  title: "Li's 李子 | 私人作品书架",
-  description: "用昵称和 PIN 记录小说、漫画、动漫与创作灵感的本地加密私人书架",
+  title: "Li's 李子 | 我的作品书架",
+  description: "收藏喜欢的小说、漫画、动漫，记录心动片段、CP 与创作灵感。",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
