@@ -51,7 +51,7 @@ export default function Navbar() {
                 Li&apos;s 李子
               </span>
               <span className="hidden text-[10px] font-bold tracking-[0.18em] text-text-light sm:block">
-                LOCAL PRIVATE SHELF
+                STORY SHELF
               </span>
             </div>
           </Link>
@@ -65,6 +65,7 @@ export default function Navbar() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      aria-current={active ? "page" : undefined}
                       className={`rounded-pill px-3.5 py-2 text-sm font-bold transition-all ${active ? "bg-coral/15 text-coral-dark" : "text-text-soft hover:bg-coral/8 hover:text-coral-dark"}`}
                     >
                       <span className="mr-1.5">{item.emoji}</span>{item.label}
@@ -84,8 +85,8 @@ export default function Navbar() {
                   type="button"
                   onClick={downloadBackup}
                   disabled={exporting}
-                  title="导出加密备份"
-                  aria-label="导出加密备份"
+                  title="导出备份"
+                  aria-label="导出备份"
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm shadow-sm ring-1 ring-coral/10 hover:-translate-y-0.5 hover:text-coral-dark disabled:opacity-50 sm:h-auto sm:w-auto sm:rounded-pill sm:px-3 sm:py-2"
                 >
                   <span>📦</span><span className="ml-1.5 hidden text-xs font-bold sm:inline">{exporting ? "导出中" : "备份"}</span>
@@ -101,15 +102,9 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              <>
-                <Link
-                  href="/migrate"
-                  className={`rounded-pill px-3 py-2 text-xs font-extrabold transition-all sm:px-4 sm:text-sm ${pathname === "/migrate" ? "bg-coral/15 text-coral-dark" : "bg-white/85 text-text-soft shadow-sm ring-1 ring-coral/10 hover:text-coral-dark"}`}
-                >
-                  📦 <span className="hidden sm:inline">旧版迁移</span><span className="sm:hidden">迁移</span>
-                </Link>
-                <div className="hidden rounded-pill bg-mint/35 px-3 py-2 text-xs font-bold text-text-soft sm:block">🔐 本地加密</div>
-              </>
+              <div className="rounded-pill bg-white/85 px-3 py-2 text-xs font-bold text-text-soft shadow-sm ring-1 ring-coral/10 sm:px-4 sm:text-sm">
+                🌷 私人书架
+              </div>
             )}
           </div>
         </div>
@@ -123,6 +118,7 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 className={`flex min-w-[82px] flex-col items-center gap-0.5 rounded-[1.2rem] px-3 py-2 text-[11px] font-bold transition-all ${active ? "bg-coral/12 text-coral-dark" : "text-text-light"}`}
               >
                 <span className="text-lg leading-none">{item.emoji}</span>
