@@ -30,6 +30,7 @@ const config: Config = {
         55: "0.55",
         85: "0.85",
         88: "0.88",
+        92: "0.92",
       },
       fontFamily: {
         cute: ["var(--font-cute)", "sans-serif"],

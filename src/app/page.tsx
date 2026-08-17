@@ -40,10 +40,10 @@ export default function HomePage() {
   if (!configured) {
     return (
       <div className="mx-auto mt-16 max-w-lg rounded-[2rem] border border-white bg-white/85 p-8 text-center shadow-lg">
-        <div className="text-5xl">⚠️</div>
-        <h1 className="mt-4 font-cute text-2xl font-black text-text-warm">当前浏览器无法启用安全书架</h1>
+        <div className="text-5xl">🌧️</div>
+        <h1 className="mt-4 font-cute text-2xl font-black text-text-warm">这个浏览器暂时打不开书架</h1>
         <p className="mt-3 text-sm font-semibold leading-7 text-text-soft">
-          这个版本需要 HTTPS、Web Crypto 和可用的本地存储。请使用最新版 Chrome、Edge、Safari 或 Firefox，并避免无痕模式。
+          请换用最新版 Chrome、Edge、Safari 或 Firefox，并使用普通浏览模式重新打开。
         </p>
       </div>
     );
@@ -54,23 +54,25 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-pill border border-white bg-white/80 px-3 py-1 text-[11px] font-extrabold tracking-[0.14em] text-coral-dark shadow-sm">
-            MY LITTLE LIBRARY
+      <div className="overflow-hidden rounded-[2.25rem] border border-white/90 bg-white/75 p-5 shadow-[0_18px_55px_rgba(92,75,81,0.07)] backdrop-blur-xl sm:p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-pill bg-coral/8 px-3 py-1 text-[11px] font-extrabold tracking-[0.14em] text-coral-dark">
+              MY STORY SHELF
+            </div>
+            <h1 className="mt-3 flex items-center gap-3 font-cute text-3xl font-extrabold text-text-warm sm:text-4xl">
+              <span className="inline-block animate-float">{currentReader.emoji}</span>
+              {currentReader.name}的作品库
+            </h1>
+            <p className="mt-2 text-sm font-semibold leading-6 text-text-light">把喜欢过、追过、想反复翻看的故事，都慢慢留在这里。</p>
           </div>
-          <h1 className="mt-3 flex items-center gap-3 font-cute text-3xl font-extrabold text-text-warm">
-            <span className="inline-block animate-float">{currentReader.emoji}</span>
-            {currentReader.name}的作品库
-          </h1>
-          <p className="mt-2 text-sm font-bold text-text-light">记录每一部心动作品 · 数据只保存在这台设备 ✨</p>
+          <Link
+            href="/add"
+            className="inline-flex self-start items-center gap-2 rounded-pill bg-coral px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-coral/20 transition-all hover:-translate-y-0.5 hover:bg-coral-dark sm:self-auto"
+          >
+            <span>＋</span> 添加作品
+          </Link>
         </div>
-        <Link
-          href="/add"
-          className="inline-flex self-start items-center gap-2 rounded-pill bg-coral px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-coral/20 hover:-translate-y-0.5 hover:bg-coral-dark sm:self-auto"
-        >
-          <span>＋</span> 添加作品
-        </Link>
       </div>
 
       <StatusTabs active={activeTab} onChange={setActiveTab} />
@@ -84,8 +86,8 @@ export default function HomePage() {
       {works.length === 0 ? (
         <div className="rounded-[2.5rem] border border-white bg-white/55 py-24 text-center shadow-sm">
           <div className="inline-block animate-float text-7xl">📚</div>
-          <p className="mt-6 font-cute text-lg font-bold text-text-soft">书架还是空的呢~</p>
-          <p className="mt-2 text-sm text-text-light">从第一部让你心动的作品开始记录吧</p>
+          <p className="mt-6 font-cute text-xl font-bold text-text-soft">从第一部喜欢的作品开始吧</p>
+          <p className="mt-2 text-sm font-semibold text-text-light">一本小说、一部漫画、一场追番，都可以成为书架的第一格。</p>
           <Link href="/add" className="mt-8 inline-block rounded-pill bg-coral px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-coral/20 transition-all hover:scale-105 hover:bg-coral-dark hover:shadow-coral/30">✨ 添加第一部作品</Link>
         </div>
       ) : (
@@ -99,7 +101,7 @@ export default function HomePage() {
 
 function LocalAuthLanding() {
   const { login, register, importBackup } = useReader();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [mode, setMode] = useState<AuthMode>("register");
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -161,76 +163,91 @@ function LocalAuthLanding() {
   };
 
   const featureItems = [
-    { icon: "🫥", title: "不需要 Token", text: "朋友打开网页就能注册" },
-    { icon: "🔐", title: "本机加密", text: "PIN 派生密钥后再保存" },
-    { icon: "📦", title: "可以搬家", text: "导出备份后换设备恢复" },
+    { icon: "📚", title: "收藏作品", text: "小说、漫画、动漫慢慢归档" },
+    { icon: "💗", title: "记住心动", text: "评分、片段和 CP 都有位置" },
+    { icon: "💡", title: "留下灵感", text: "脑洞和创作随手记下来" },
   ];
 
   return (
-    <div className="relative py-8 sm:py-14 lg:py-20">
-      <div className="pointer-events-none absolute -top-12 left-[6%] h-36 w-36 rounded-full bg-coral/10 blur-3xl" />
-      <div className="pointer-events-none absolute right-[3%] top-32 h-44 w-44 rounded-full bg-mint/25 blur-3xl" />
+    <div className="relative min-h-[calc(100vh-8rem)] py-7 sm:py-12 lg:flex lg:items-center lg:py-16">
+      <div className="pointer-events-none absolute -left-20 top-0 h-72 w-72 rounded-full bg-coral/10 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-5%] top-24 h-72 w-72 rounded-full bg-mint/25 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-[38%] h-56 w-56 rounded-full bg-lavender/20 blur-3xl" />
 
-      <div className="relative grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
-        <section className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-pill border border-coral/15 bg-white/75 px-4 py-2 text-xs font-extrabold text-coral-dark shadow-sm backdrop-blur">
-            <span className="h-2 w-2 rounded-full bg-coral shadow-[0_0_0_4px_rgba(255,143,171,0.12)]" />
-            LOCAL · ENCRYPTED · YOURS
+      <div className="relative grid w-full items-center gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:gap-16">
+        <section className="relative max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-pill border border-white/90 bg-white/70 px-4 py-2 text-[11px] font-black tracking-[0.18em] text-coral-dark shadow-sm backdrop-blur">
+            <span className="text-base">🍑</span>
+            LI&apos;S · STORY SHELF
           </div>
 
-          <h1 className="mt-6 font-cute text-[2.75rem] font-black leading-[1.12] tracking-tight text-text-warm sm:text-6xl">
+          <h1 className="mt-6 font-cute text-[2.8rem] font-black leading-[1.1] tracking-tight text-text-warm sm:text-6xl lg:text-[4.2rem]">
             把喜欢的故事，
-            <span className="relative inline-block text-coral-dark">
-              收进自己的书架。
-              <span className="absolute -bottom-2 left-1 right-1 -z-10 h-3 rounded-full bg-coral/10" />
+            <span className="relative mt-1 inline-block text-coral-dark">
+              留在这里。
+              <span className="absolute -bottom-1 left-1 right-1 -z-10 h-4 rounded-full bg-coral/10" />
             </span>
           </h1>
 
           <p className="mt-6 max-w-xl text-base font-semibold leading-8 text-text-soft sm:text-lg">
-            不需要 GitHub Token，也不需要云服务器。每个人用昵称和 6 位 PIN 打开自己的本地加密书架，想换设备时再导出备份带走。
+            小说、漫画、动漫，还有突然冒出来的灵感。给每一份心动留一个位置，慢慢长成属于自己的小小作品库。
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
             {featureItems.map(item => (
-              <div key={item.title} className="rounded-[1.6rem] border border-white/90 bg-white/65 p-4 shadow-sm backdrop-blur-sm">
-                <div className="text-2xl">{item.icon}</div>
+              <div key={item.title} className="group rounded-[1.6rem] border border-white/90 bg-white/65 p-4 shadow-[0_12px_35px_rgba(92,75,81,0.05)] backdrop-blur-sm transition-all hover:-translate-y-1 hover:bg-white/85 hover:shadow-[0_18px_45px_rgba(92,75,81,0.08)]">
+                <div className="text-2xl transition-transform group-hover:scale-110">{item.icon}</div>
                 <p className="mt-2 text-sm font-extrabold text-text-warm">{item.title}</p>
                 <p className="mt-1 text-xs font-semibold leading-5 text-text-light">{item.text}</p>
               </div>
             ))}
           </div>
+
+          <div className="mt-7 flex flex-wrap gap-2 text-[11px] font-bold text-text-light">
+            {['小说', '漫画', '动漫', 'CP', '灵感', '名场面'].map(item => (
+              <span key={item} className="rounded-pill border border-white bg-white/55 px-3 py-1.5 shadow-sm">{item}</span>
+            ))}
+          </div>
         </section>
 
         <section className="relative mx-auto w-full max-w-[470px]">
-          <div className="glass-q overflow-hidden rounded-[2.3rem] border border-white p-2 shadow-[0_24px_70px_rgba(92,75,81,0.12)]">
-            <div className="rounded-[1.9rem] bg-white/90 p-6 sm:p-8">
-              <div className="flex items-center justify-between gap-3">
+          <div className="absolute -left-7 -top-7 hidden rotate-[-8deg] rounded-[1.4rem] border border-white bg-white/75 px-4 py-3 shadow-lg backdrop-blur sm:block">
+            <div className="text-xl">📖</div>
+            <p className="mt-1 text-[10px] font-extrabold text-text-light">下一页见</p>
+          </div>
+          <div className="absolute -bottom-6 -right-5 hidden rotate-[7deg] rounded-[1.4rem] border border-white bg-peach/80 px-4 py-3 shadow-lg sm:block">
+            <div className="text-xl">✨</div>
+            <p className="mt-1 text-[10px] font-extrabold text-text-soft">今日也有好故事</p>
+          </div>
+
+          <div className="glass-q overflow-hidden rounded-[2.4rem] border border-white p-2 shadow-[0_28px_80px_rgba(92,75,81,0.13)]">
+            <div className="rounded-[2rem] bg-white/92 p-6 sm:p-8">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-black tracking-[0.18em] text-text-light">WELCOME TO</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="text-3xl">🍑</span>
-                    <span className="font-cute text-2xl font-black text-text-warm">Li&apos;s 李子</span>
-                  </div>
+                  <p className="text-[10px] font-black tracking-[0.2em] text-coral-dark">WELCOME HOME</p>
+                  <h2 className="mt-2 font-cute text-2xl font-black text-text-warm">今天想从哪一页继续？</h2>
+                  <p className="mt-1.5 text-xs font-semibold leading-5 text-text-light">打开自己的书架，或者从一个全新的昵称开始。</p>
                 </div>
-                <div className="rounded-pill bg-mint/35 px-3 py-1.5 text-[11px] font-extrabold text-text-soft">本机加密</div>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.35rem] bg-peach text-2xl shadow-inner">🍑</div>
               </div>
 
               <div className="mt-7 grid grid-cols-3 gap-1 rounded-[1.3rem] bg-coral/5 p-1">
-                <ModeButton active={mode === "login"} onClick={() => selectMode("login")}>登录</ModeButton>
-                <ModeButton active={mode === "register"} onClick={() => selectMode("register")}>第一次使用</ModeButton>
+                <ModeButton active={mode === "login"} onClick={() => selectMode("login")}>回到书架</ModeButton>
+                <ModeButton active={mode === "register"} onClick={() => selectMode("register")}>新建书架</ModeButton>
                 <ModeButton active={mode === "import"} onClick={() => selectMode("import")}>恢复备份</ModeButton>
               </div>
 
               {mode === "register" && (
                 <div className="mt-5">
-                  <p className="mb-2 text-xs font-bold text-text-light">选一个头像</p>
+                  <p className="mb-2 text-xs font-bold text-text-light">先选一个喜欢的头像</p>
                   <div className="flex flex-wrap gap-2">
                     {EMOJIS.map(item => (
                       <button
                         key={item}
                         type="button"
                         onClick={() => setEmoji(item)}
-                        className={`flex h-10 w-10 items-center justify-center rounded-2xl text-xl ${emoji === item ? "scale-110 bg-coral/20 ring-2 ring-coral/30" : "bg-coral/5 hover:bg-coral/10"}`}
+                        aria-label={`选择头像 ${item}`}
+                        className={`flex h-10 w-10 items-center justify-center rounded-2xl text-xl transition-all ${emoji === item ? "scale-110 bg-coral/20 ring-2 ring-coral/30" : "bg-coral/5 hover:bg-coral/10"}`}
                       >
                         {item}
                       </button>
@@ -241,12 +258,12 @@ function LocalAuthLanding() {
 
               {mode === "import" ? (
                 <div className="mt-5 space-y-4">
-                  <label className="block cursor-pointer rounded-[1.4rem] border-2 border-dashed border-coral/20 bg-coral/[0.035] p-5 text-center hover:border-coral/35 hover:bg-coral/[0.06]">
+                  <label className="block cursor-pointer rounded-[1.4rem] border-2 border-dashed border-coral/20 bg-coral/[0.035] p-5 text-center transition-colors hover:border-coral/35 hover:bg-coral/[0.06]">
                     <span className="block text-3xl">📦</span>
                     <span className="mt-2 block text-sm font-extrabold text-text-warm">
                       {backupFile ? backupFile.name : "选择 .json 备份文件"}
                     </span>
-                    <span className="mt-1 block text-xs font-semibold text-text-light">备份本身仍然是加密的 · 最大 10 MB</span>
+                    <span className="mt-1 block text-xs font-semibold text-text-light">选择之前导出的书架备份 · 最大 10 MB</span>
                     <input
                       type="file"
                       accept="application/json,.json"
@@ -268,7 +285,7 @@ function LocalAuthLanding() {
                     maxLength={24}
                     autoComplete="username"
                     placeholder="昵称，例如：小李"
-                    className="w-full rounded-[1.25rem] border-2 border-coral/15 bg-white px-4 py-3 text-sm text-text-warm outline-none focus:border-coral focus:ring-4 focus:ring-coral/10"
+                    className="w-full rounded-[1.25rem] border-2 border-coral/15 bg-[#fffdfc] px-4 py-3 text-sm text-text-warm outline-none transition-all placeholder:text-text-light/60 focus:border-coral focus:bg-white focus:ring-4 focus:ring-coral/10"
                   />
                   <PinInput value={pin} onChange={setPin} placeholder="6 位数字 PIN" onEnter={mode === "login" ? submitLoginOrRegister : undefined} />
                   {mode === "register" && (
@@ -285,14 +302,14 @@ function LocalAuthLanding() {
                 type="button"
                 onClick={mode === "import" ? submitImport : submitLoginOrRegister}
                 disabled={submitting}
-                className="mt-5 w-full rounded-[1.25rem] bg-coral px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-coral/15 hover:-translate-y-0.5 hover:bg-coral-dark disabled:opacity-50"
+                className="mt-5 w-full rounded-[1.25rem] bg-coral px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-coral/15 transition-all hover:-translate-y-0.5 hover:bg-coral-dark disabled:opacity-50"
               >
-                {submitting ? "⏳ 正在处理..." : mode === "login" ? "打开我的书架" : mode === "register" ? "创建加密书架" : "恢复并打开书架"}
+                {submitting ? "⏳ 正在处理..." : mode === "login" ? "打开我的书架" : mode === "register" ? "创建我的书架" : "恢复我的书架"}
               </button>
 
-              <div className="mt-5 rounded-[1.2rem] bg-peach/60 px-4 py-3 text-[11px] font-semibold leading-5 text-text-soft">
-                💡 数据不会自动上传到云端。清理浏览器数据、卸载浏览器或更换设备前，请先在登录后点击“导出备份”。无痕模式关闭后可能会清除本地数据。
-              </div>
+              <p className="mt-5 text-center text-[11px] font-semibold leading-5 text-text-light">
+                请记住自己的昵称和 PIN；需要换设备时，可以先在书架里导出备份。
+              </p>
             </div>
           </div>
         </section>
@@ -306,7 +323,7 @@ function ModeButton({ active, onClick, children }: { active: boolean; onClick: (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-[1rem] px-2 py-2.5 text-[11px] font-extrabold sm:text-xs ${active ? "bg-white text-coral-dark shadow-sm" : "text-text-light hover:text-text-soft"}`}
+      className={`rounded-[1rem] px-2 py-2.5 text-[11px] font-extrabold transition-all sm:text-xs ${active ? "bg-white text-coral-dark shadow-sm" : "text-text-light hover:text-text-soft"}`}
     >
       {children}
     </button>
@@ -324,7 +341,7 @@ function PinInput({ value, onChange, placeholder, onEnter }: { value: string; on
       autoComplete="current-password"
       type="password"
       placeholder={placeholder}
-      className="w-full rounded-[1.25rem] border-2 border-coral/15 bg-white px-4 py-3 text-sm tracking-[0.28em] text-text-warm outline-none placeholder:tracking-normal focus:border-coral focus:ring-4 focus:ring-coral/10"
+      className="w-full rounded-[1.25rem] border-2 border-coral/15 bg-[#fffdfc] px-4 py-3 text-sm tracking-[0.28em] text-text-warm outline-none transition-all placeholder:tracking-normal placeholder:text-text-light/60 focus:border-coral focus:bg-white focus:ring-4 focus:ring-coral/10"
     />
   );
 }

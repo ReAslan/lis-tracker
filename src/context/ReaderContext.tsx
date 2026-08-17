@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import * as store from "@/lib/githubStore";
+import { prepareFreshStart } from "@/lib/freshStart";
 import type { Reader } from "@/lib/githubStore";
 
 interface ReaderContextType {
@@ -23,6 +24,7 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   const [configured, setConfigured] = useState(false);
 
   useEffect(() => {
+    prepareFreshStart();
     setConfigured(store.isConfigured());
     store.restoreSession()
       .then(setCurrentReader)
