@@ -30,7 +30,7 @@ function CreativeListView({ currentReader }: { currentReader: Reader }) {
     setLoading(true);
     setError("");
     store.getCreativeEntries(currentReader.id)
-      .then((data) => setEntries(data))
+      .then(setEntries)
       .catch((err) => setError(err instanceof Error ? err.message : "读取创作失败"))
       .finally(() => setLoading(false));
   }
@@ -38,7 +38,8 @@ function CreativeListView({ currentReader }: { currentReader: Reader }) {
   useEffect(() => { load(); }, [currentReader]);
 
   async function handleDelete(id: string) {
-    if (!confirm("确定删除吗？")) return;
+    if (!window.confirm("确定删除吗？")) return;
+    setError("");
     try {
       await store.deleteCreativeEntry(id);
       load();
@@ -59,9 +60,7 @@ function CreativeListView({ currentReader }: { currentReader: Reader }) {
             <h1 className="font-cute text-3xl font-extrabold tracking-tight text-text-warm sm:text-4xl">{currentReader.name}的创作角</h1>
             <p className="mt-2 text-sm font-semibold leading-relaxed text-text-light">灵感、CP 重组、代餐小剧场、突然冒出来的台词，都可以先放在这里。</p>
           </div>
-          <Link href="/creative/new" className="inline-flex items-center justify-center rounded-pill bg-coral px-5 py-3 text-sm font-bold text-white shadow-lg shadow-coral/20 transition-all hover:-translate-y-0.5 hover:bg-coral-dark">
-            ✨ 新建创作
-          </Link>
+          <Link href="/creative/new" className="inline-flex items-center justify-center rounded-pill bg-coral px-5 py-3 text-sm font-bold text-white shadow-lg shadow-coral/20 transition-all hover:-translate-y-0.5 hover:bg-coral-dark">✨ 新建创作</Link>
         </div>
       </div>
 
@@ -97,7 +96,7 @@ function CreativeListView({ currentReader }: { currentReader: Reader }) {
                 <span className="text-[11px] font-bold text-text-light">更新于 {new Date(entry.updatedAt).toLocaleDateString("zh-CN")}</span>
                 <div className="flex gap-1">
                   <Link href={`/creative?edit=${entry.id}`} className="rounded-pill px-3 py-1.5 text-xs font-bold text-text-light hover:bg-coral/5 hover:text-coral-dark">编辑</Link>
-                  <button onClick={() => handleDelete(entry.id)} className="rounded-pill px-3 py-1.5 text-xs font-bold text-text-light hover:bg-red-50 hover:text-red-400">删除</button>
+                  <button type="button" onClick={() => handleDelete(entry.id)} className="rounded-pill px-3 py-1.5 text-xs font-bold text-text-light hover:bg-red-50 hover:text-red-400">删除</button>
                 </div>
               </div>
             </article>
@@ -112,29 +111,32 @@ function CreativeDetailView({ id }: { id: string }) {
   const router = useRouter();
   const [entry, setEntry] = useState<CreativeEntry | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     setLoading(true);
-    setError("");
+    setLoadError("");
+    setActionError("");
     store.getCreativeEntry(id)
-      .then((data) => setEntry(data))
-      .catch((err) => setError(err instanceof Error ? err.message : "读取创作失败"))
+      .then(setEntry)
+      .catch((err) => setLoadError(err instanceof Error ? err.message : "读取创作失败"))
       .finally(() => setLoading(false));
   }, [id]);
 
   async function handleDelete() {
-    if (!confirm("确定删除吗？")) return;
+    if (!window.confirm("确定删除吗？")) return;
+    setActionError("");
     try {
       await store.deleteCreativeEntry(id);
       router.push("/creative");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败，请重试");
+      setActionError(err instanceof Error ? err.message : "删除失败，请重试");
     }
   }
 
   if (loading) return <div className="mx-auto max-w-3xl animate-pulse space-y-4"><div className="h-8 w-1/2 rounded-full bg-coral/10" /></div>;
-  if (error) return <div className="py-24 text-center"><p className="font-bold text-red-500">{error}</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
+  if (loadError) return <div className="py-24 text-center"><p className="font-bold text-red-500">{loadError}</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
   if (!entry) return <div className="py-24 text-center"><p className="text-text-soft">创作不存在</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
 
   return (
@@ -146,13 +148,15 @@ function CreativeDetailView({ id }: { id: string }) {
         <p className="mt-3 text-xs font-bold text-text-light">最后更新 · {new Date(entry.updatedAt).toLocaleDateString("zh-CN")}</p>
       </div>
 
+      {actionError && <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-500">❌ {actionError}</div>}
+
       <article className="rounded-[2rem] border border-white/90 bg-[#fffdfb] p-6 shadow-[0_16px_45px_rgba(92,75,81,0.06)] sm:p-8">
         <p className="whitespace-pre-wrap text-[15px] font-medium leading-8 text-text-soft">{entry.content}</p>
       </article>
 
       <div className="flex flex-wrap gap-2 rounded-[1.6rem] border border-white/90 bg-white/80 p-3 shadow-sm">
         <Link href={`/creative?edit=${entry.id}`} className="rounded-pill bg-coral px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-coral-dark">✏️ 编辑</Link>
-        <button onClick={handleDelete} className="rounded-pill bg-red-50 px-5 py-2.5 text-sm font-bold text-red-400 hover:bg-red-100">🗑️ 删除</button>
+        <button type="button" onClick={handleDelete} className="rounded-pill bg-red-50 px-5 py-2.5 text-sm font-bold text-red-400 hover:bg-red-100">🗑️ 删除</button>
         <Link href="/creative" className="rounded-pill px-5 py-2.5 text-sm font-bold text-text-light hover:bg-coral/5 hover:text-text-warm">返回列表</Link>
       </div>
     </div>
@@ -165,12 +169,14 @@ function CreativeEditView({ editId }: { editId: string }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [exists, setExists] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    setError("");
+    setLoadError("");
+    setSaveError("");
     store.getCreativeEntry(editId)
       .then((data) => {
         if (data) {
@@ -181,25 +187,25 @@ function CreativeEditView({ editId }: { editId: string }) {
           setExists(false);
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "读取创作失败"))
+      .catch((err) => setLoadError(err instanceof Error ? err.message : "读取创作失败"))
       .finally(() => setLoading(false));
   }, [editId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setError("");
+    setSaveError("");
     try {
       await store.updateCreativeEntry(editId, { title, content });
       router.push(`/creative?id=${editId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "保存失败，请重试");
+      setSaveError(err instanceof Error ? err.message : "保存失败，请重试");
       setSaving(false);
     }
   }
 
   if (loading) return <div className="mx-auto max-w-3xl animate-pulse"><div className="h-8 w-1/3 rounded-full bg-coral/10" /></div>;
-  if (error) return <div className="py-24 text-center"><p className="font-bold text-red-500">{error}</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
+  if (loadError) return <div className="py-24 text-center"><p className="font-bold text-red-500">{loadError}</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
   if (!exists) return <div className="py-24 text-center"><p className="text-text-soft">创作不存在</p><Link href="/creative" className="mt-3 inline-block font-bold text-coral">返回创作角</Link></div>;
 
   const inputClass = "w-full rounded-[1.15rem] border border-coral/15 bg-[#fffdfc] px-4 py-3 text-sm text-text-warm outline-none focus:border-coral/50 focus:bg-white focus:ring-4 focus:ring-coral/10";
@@ -207,7 +213,7 @@ function CreativeEditView({ editId }: { editId: string }) {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="rounded-[2rem] border border-white/90 bg-white/85 p-5 shadow-[0_18px_60px_rgba(92,75,81,0.08)] sm:p-7">
-        <button onClick={() => router.back()} className="mb-4 text-xs font-bold text-text-light hover:text-coral-dark">← 返回</button>
+        <button type="button" onClick={() => router.back()} className="mb-4 text-xs font-bold text-text-light hover:text-coral-dark">← 返回</button>
         <div className="text-[10px] font-extrabold tracking-[0.18em] text-purple-500">EDIT IDEA</div>
         <h1 className="mt-2 font-cute text-3xl font-extrabold text-text-warm">编辑创作</h1>
       </div>
@@ -226,7 +232,7 @@ function CreativeEditView({ editId }: { editId: string }) {
             <textarea className={`${inputClass} min-h-[360px] resize-y leading-7`} value={content} onChange={(e) => setContent(e.target.value)} required />
           </div>
         </div>
-        {error && <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-bold leading-5 text-red-500">❌ {error}</div>}
+        {saveError && <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-3 text-xs font-bold leading-5 text-red-500">❌ {saveError}</div>}
         <div className="mt-6 flex justify-end gap-2 border-t border-coral/10 pt-5">
           <button type="button" onClick={() => router.back()} className="rounded-pill px-5 py-3 text-sm font-bold text-text-soft hover:bg-coral/5">取消</button>
           <button type="submit" disabled={saving} className="rounded-pill bg-coral px-7 py-3 text-sm font-bold text-white shadow-lg shadow-coral/20 hover:bg-coral-dark disabled:opacity-50">{saving ? "保存中..." : "💾 保存修改"}</button>
@@ -237,5 +243,9 @@ function CreativeEditView({ editId }: { editId: string }) {
 }
 
 export default function CreativePage() {
-  return <Suspense fallback={<div className="py-24 text-center text-text-light">加载中...</div>}><CreativeContent /></Suspense>;
+  return (
+    <Suspense fallback={<div className="py-24 text-center text-text-light">加载中...</div>}>
+      <CreativeContent />
+    </Suspense>
+  );
 }
