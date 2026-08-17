@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import WorkForm from "@/components/WorkForm";
+import LockedShelf from "@/components/LockedShelf";
 import { useReader } from "@/context/ReaderContext";
 
 export default function AddPage() {
-  const { currentReader } = useReader();
+  const { currentReader, loading } = useReader();
 
-  if (!currentReader) return null;
+  if (loading) return <div className="py-24 text-center text-sm font-bold text-text-light">正在检查书架状态...</div>;
+  if (!currentReader) return <LockedShelf />;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 sm:space-y-8">
